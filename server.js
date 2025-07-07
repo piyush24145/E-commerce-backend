@@ -16,7 +16,10 @@ const userRouter = require("./routers/user.router");
 const paymentRouter=require("./routers/payment.router")
 
 // Middleware
-app.use(cors({ exposedHeaders: "Authorization" }));
+app.use(cors({ 
+  origin: 'https://e-commerce-4ogyxiq0a-piyush24145s-projects.vercel.app',
+  credentials: true,
+  exposedHeaders: "Authorization" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
