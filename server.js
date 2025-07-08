@@ -17,7 +17,7 @@ const paymentRouter=require("./routers/payment.router")
 
 // Middleware
 app.use(cors({ 
-  origin: 'https://e-commerce-4ogyxiq0a-piyush24145s-projects.vercel.app',
+  origin: 'https://e-commerce-fm0m703fq-piyush24145s-projects.vercel.app',
   credentials: true,
   exposedHeaders: "Authorization" }));
 app.use(express.json());
