@@ -8,9 +8,7 @@ const app = express();
 
 // ✅ Allowed Frontend URLs for CORS
 const allowedOrigins = [
-  'https://e-commerce-odkdss2lf-piyush24145s-projects.vercel.app',
-  'https://e-commerce-web-teal.vercel.app',
-  'https://e-commerce-64j8jzzpi-piyush24145s-projects.vercel.app'
+'https://e-commerce-6uwip9dwf-piyush24145s-projects.vercel.app'
 ];
 
 app.use(cors({
