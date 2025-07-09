@@ -6,10 +6,8 @@ const mongoose = require("mongoose");
 
 const app = express();
 
-// ✅ Allowed Frontend URLs for CORS
-const allowedOrigins = [
-'https://e-commerce-6uwip9dwf-piyush24145s-projects.vercel.app'
-];
+// ✅ Allowed Frontend URL for CORS from .env
+const allowedOrigins = [process.env.FRONTEND_URL];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -58,4 +56,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
+
 
