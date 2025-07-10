@@ -5,9 +5,8 @@ const path = require("path");
 const mongoose = require("mongoose");
 
 const app = express();
-
-// ✅ Allowed Frontend URL for CORS from .env
-const allowedOrigins = [process.env.FRONTEND_URL];
+const allowedOrigins = [ 'https://e-commerce-fronted-epjfa7uxl-piyush24145s-projects.vercel.app',
+  'http://localhost:3000'];
 
 app.use(cors({
   origin: function (origin, callback) {
