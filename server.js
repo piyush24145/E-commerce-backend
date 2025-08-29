@@ -5,8 +5,12 @@ const path = require("path");
 const mongoose = require("mongoose");
 
 const app = express();
-const allowedOrigins = [ 'https://e-commerce-fronted-epjfa7uxl-piyush24145s-projects.vercel.app',
-  'http://localhost:3000'];
+const allowedOrigins = [
+  'https://e-commerce-fronted-epjfa7uxl-piyush24145s-projects.vercel.app',
+  'https://e-commerce-fronted-lkff-2d042bc7j-piyush24145s-projects.vercel.app', // naya domain
+  'http://localhost:3000'
+];
+
 
 app.use(cors({
   origin: function (origin, callback) {
