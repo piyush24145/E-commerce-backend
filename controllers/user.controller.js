@@ -6,7 +6,7 @@ require("dotenv").config();
 
 module.exports = {
   // =================== REGISTER ===================
-  register: async (req, res) => {
+  register: async (req,res) => {
     try {
       const { name, email, password, role } = req.body;
 
@@ -17,11 +17,11 @@ module.exports = {
         });
       }
 
-      const existingUser = await User.findOne({ email });
+      const existingUser = await User.findOne({email });
       if (existingUser) {
         return res.status(403).json({
           success: false,
-          message: "User already registered",
+          message: "User already registered", 
         });
       }
 
@@ -118,7 +118,6 @@ getProfile: async (req, res) => {
       if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
       }
-
       const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
 
       res.status(200).json({ success: true, user, orders });

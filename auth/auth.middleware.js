@@ -4,7 +4,7 @@ module.exports = {
   authenticate: async (req, res, next) => {
     try {
       const authHeader = req.header("Authorization");
-      console.log("Header", authHeader); // ✅ Debugging header
+      console.log("Header", authHeader); 
 
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({
@@ -22,8 +22,8 @@ module.exports = {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded; // ✅ Add user to request
-      console.log("✅ JWT Decoded:", decoded); // ✅ Confirm role etc.
+      req.user = decoded; 
+      console.log("✅ JWT Decoded:", decoded); 
       next();
     } catch (error) {
       console.error("❌ JWT Auth Error:", error.message);
