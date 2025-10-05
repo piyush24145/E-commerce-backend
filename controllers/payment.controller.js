@@ -25,7 +25,7 @@ module.exports = {
             description: item.product.short_des || "",
 
             images: Array.isArray(item.product.images) && item.product.images.length > 0
-              ? [`${YOUR_DOMAIN}/${item.product.images[0]}`]
+              ? [item.product.images[0]]
               : [],
 
           },
