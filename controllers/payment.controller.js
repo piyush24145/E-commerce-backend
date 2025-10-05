@@ -7,7 +7,9 @@ module.exports = {
   createCheckoutSession: async (req, res) => {
     try {
       const userId = req.user.id;
-      const YOUR_DOMAIN = process.env.CLIENT_URL || "http://localhost:3000";
+
+    
+      const YOUR_DOMAIN = process.env.CLIENT_URL;
 
       const cart = await Cart.findOne({ user: userId }).populate("products.product");
       if (!cart || cart.products.length === 0) {
@@ -21,9 +23,11 @@ module.exports = {
           product_data: {
             name: item.product.title,
             description: item.product.short_des || "",
+
             images: Array.isArray(item.product.images) && item.product.images.length > 0
               ? [`${YOUR_DOMAIN}/${item.product.images[0]}`]
               : [],
+
           },
         },
         quantity: item.quantity,
@@ -76,7 +80,7 @@ module.exports = {
 
           await order.save();
 
-          // Clear cart after successful order
+          // ✅ Clear cart after successful payment
           await Cart.findOneAndUpdate({ user: userId }, { $set: { products: [] } });
         }
       }

@@ -17,7 +17,7 @@ const productSchema = new Schema({
     ref: "Color",
     required: true,
   },
-  images: [String], // ✅ IMPORTANT: Add this line
+  images: [String], // Cloudinary URLs stored here
   createdAt: { type: Date, default: new Date() },
 });
 
