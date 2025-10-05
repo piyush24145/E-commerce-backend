@@ -1,4 +1,3 @@
-// controllers/product.controller.js
 const Product = require("../models/product.model");
 const Category = require("../models/category.model");
 const Color = require("../models/color.model");
@@ -7,8 +6,36 @@ const Color = require("../models/color.model");
 exports.createProduct = async (req, res) => {
   try {
     const { title, description, short_des, price, stock, category, color } = req.body;
-    // multer-storage-cloudinary provides file.path (secure URL) for each uploaded file
-    const imagePaths = req.files?.map((file) => file.path || file.filename) || [];
+
+    // Validation check
+    if (!title || !description || !price || !stock) {
+      return res.status(400).json({
+        success: false,
+        message: "❌ Missing required fields: title, description, price, or stock",
+      });
+    }
+
+    // Multer files check
+    let imagePaths = [];
+    if (req.files && req.files.length > 0) {
+      imagePaths = req.files.map((file) => file.path || file.filename);
+    } else {
+      console.warn("⚠️ No images uploaded for this product");
+    }
+
+    // Check if category exists
+    let categoryObj = null;
+    if (category) {
+      categoryObj = await Category.findById(category);
+      if (!categoryObj) return res.status(400).json({ success: false, message: "❌ Invalid category ID" });
+    }
+
+    // Check if color exists
+    let colorObj = null;
+    if (color) {
+      colorObj = await Color.findById(color);
+      if (!colorObj) return res.status(400).json({ success: false, message: "❌ Invalid color ID" });
+    }
 
     const newProduct = new Product({
       title,
@@ -16,8 +43,8 @@ exports.createProduct = async (req, res) => {
       short_des,
       price,
       stock,
-      category,
-      color,
+      category: categoryObj?._id || null,
+      color: colorObj?._id || null,
       images: imagePaths,
     });
 
@@ -29,10 +56,11 @@ exports.createProduct = async (req, res) => {
       product: newProduct,
     });
   } catch (err) {
-    console.error("Error in createProduct:", err);
+    console.error("❌ Error in createProduct:", err);
     res.status(500).json({
       success: false,
       message: "❌ Server error while creating product",
+      error: err.message,
     });
   }
 };
@@ -60,10 +88,11 @@ exports.getProducts = async (req, res) => {
 
     res.status(200).json({ success: true, products });
   } catch (err) {
-    console.error("Error in getProducts:", err);
+    console.error("❌ Error in getProducts:", err);
     res.status(500).json({
       success: false,
       message: "❌ Failed to fetch products",
+      error: err.message,
     });
   }
 };
@@ -80,8 +109,8 @@ exports.getSingleProduct = async (req, res) => {
 
     res.status(200).json({ success: true, product });
   } catch (err) {
-    console.error("Error in getSingleProduct:", err);
-    res.status(500).json({ success: false, message: "❌ Failed to fetch product" });
+    console.error("❌ Error in getSingleProduct:", err);
+    res.status(500).json({ success: false, message: "❌ Failed to fetch product", error: err.message });
   }
 };
 
@@ -99,8 +128,18 @@ exports.updateProductById = async (req, res) => {
     if (short_des) existingProduct.short_des = short_des;
     if (price) existingProduct.price = price;
     if (stock) existingProduct.stock = stock;
-    if (category) existingProduct.category = category;
-    if (color) existingProduct.color = color;
+
+    // Validate category/color before updating
+    if (category) {
+      const cat = await Category.findById(category);
+      if (!cat) return res.status(400).json({ success: false, message: "❌ Invalid category ID" });
+      existingProduct.category = category;
+    }
+    if (color) {
+      const col = await Color.findById(color);
+      if (!col) return res.status(400).json({ success: false, message: "❌ Invalid color ID" });
+      existingProduct.color = color;
+    }
 
     // If new images uploaded, replace images with uploaded ones.
     if (req.files && req.files.length > 0) {
@@ -110,8 +149,8 @@ exports.updateProductById = async (req, res) => {
     await existingProduct.save();
     res.status(200).json({ success: true, message: "✅ Product updated successfully", product: existingProduct });
   } catch (err) {
-    console.error("Error in updateProductById:", err);
-    res.status(500).json({ success: false, message: "❌ Failed to update product" });
+    console.error("❌ Error in updateProductById:", err);
+    res.status(500).json({ success: false, message: "❌ Failed to update product", error: err.message });
   }
 };
 
@@ -126,6 +165,6 @@ exports.deleteProductById = async (req, res) => {
     res.status(200).json({ success: true, message: "✅ Product deleted successfully" });
   } catch (err) {
     console.error("❌ Error in deleteProductById:", err);
-    res.status(500).json({ success: false, message: "❌ Failed to delete product" });
+    res.status(500).json({ success: false, message: "❌ Failed to delete product", error: err.message });
   }
 };
