@@ -1,3 +1,4 @@
+// controllers/payment.controller.js
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const Cart = require("../models/cart.model");
@@ -8,8 +9,8 @@ module.exports = {
     try {
       const userId = req.user.id;
 
-    
-      const YOUR_DOMAIN = process.env.CLIENT_URL;
+      // Backend knows frontend URL from env
+      const YOUR_DOMAIN = process.env.CLIENT_URL; // Local: http://localhost:3000, Prod: https://your-frontend.vercel.app
 
       const cart = await Cart.findOne({ user: userId }).populate("products.product");
       if (!cart || cart.products.length === 0) {
@@ -23,11 +24,7 @@ module.exports = {
           product_data: {
             name: item.product.title,
             description: item.product.short_des || "",
-
-            images: Array.isArray(item.product.images) && item.product.images.length > 0
-              ? [item.product.images[0]]
-              : [],
-
+            images: item.product.images?.length > 0 ? [item.product.images[0]] : [],
           },
         },
         quantity: item.quantity,
@@ -37,10 +34,10 @@ module.exports = {
         ui_mode: "embedded",
         line_items: lineItems,
         mode: "payment",
-        return_url: `${YOUR_DOMAIN}/payment-return?session_id={CHECKOUT_SESSION_ID}`,
+        return_url: `${YOUR_DOMAIN}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
       });
 
-      res.json({ clientSecret: session.client_secret });
+      res.json({ clientSecret: session.client_secret, url: session.url });
     } catch (err) {
       console.error("❌ Stripe session error:", err.message);
       res.status(500).json({ error: "Failed to create session" });
@@ -50,13 +47,9 @@ module.exports = {
   sessionStatus: async (req, res) => {
     try {
       const sessionId = req.query.session_id;
-      if (!sessionId) {
-        return res.status(400).json({ error: "Missing session_id" });
-      }
+      if (!sessionId) return res.status(400).json({ error: "Missing session_id" });
 
       const session = await stripe.checkout.sessions.retrieve(sessionId);
-      console.log("✅ Stripe session fetched:", session.id);
-
       const userId = req.user?.id;
       const paymentId = session.id;
 
@@ -79,8 +72,6 @@ module.exports = {
           });
 
           await order.save();
-
-          // ✅ Clear cart after successful payment
           await Cart.findOneAndUpdate({ user: userId }, { $set: { products: [] } });
         }
       }
