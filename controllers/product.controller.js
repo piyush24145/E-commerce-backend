@@ -15,10 +15,10 @@ exports.createProduct = async (req, res) => {
     }
 
     // ✅ Multer images
-    let imagePaths = [];
-    if (req.files && req.files.length > 0) {
-      imagePaths = req.files.map(file => file.path || file.filename);
-    }
+   let imagePaths = [];
+if (req.files && req.files.length > 0) {
+  imagePaths = req.files.map(file => file.path); // Cloudinary URL
+}
 
     // ✅ Validate category
     let categoryObj = null;
@@ -152,11 +152,10 @@ exports.updateProductById = async (req, res) => {
     }
 
     // ✅ Add newly uploaded images
-    if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => file.path || file.filename);
-      finalImages = [...finalImages, ...newImages];
-    }
-
+   if (req.files && req.files.length > 0) {
+  const newImages = req.files.map(file => file.path); // Cloudinary URL
+  finalImages = [...finalImages, ...newImages];
+}
     product.images = finalImages;
 
     await product.save();
