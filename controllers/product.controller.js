@@ -119,40 +119,66 @@ exports.updateProductById = async (req, res) => {
   try {
     const productId = req.params.id;
     const existingProduct = await Product.findById(productId);
-    if (!existingProduct) return res.status(404).json({ success: false, message: "❌ Product not found" });
 
-    const { title, description, short_des, price, stock, category, color } = req.body;
+    if (!existingProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "❌ Product not found",
+      });
+    }
+
+    const {
+      title,
+      description,
+      short_des,
+      price,
+      stock,
+      category,
+      color,
+      existingImages,
+    } = req.body;
 
     if (title) existingProduct.title = title;
     if (description) existingProduct.description = description;
     if (short_des) existingProduct.short_des = short_des;
     if (price) existingProduct.price = price;
     if (stock) existingProduct.stock = stock;
+    if (category) existingProduct.category = category;
+    if (color) existingProduct.color = color;
 
-    // Validate category/color before updating
-    if (category) {
-      const cat = await Category.findById(category);
-      if (!cat) return res.status(400).json({ success: false, message: "❌ Invalid category ID" });
-      existingProduct.category = category;
-    }
-    if (color) {
-      const col = await Color.findById(color);
-      if (!col) return res.status(400).json({ success: false, message: "❌ Invalid color ID" });
-      existingProduct.color = color;
+    // 🔥 IMAGE FIX
+    let finalImages = [];
+
+    if (existingImages) {
+      finalImages = JSON.parse(existingImages);
+    } else {
+      finalImages = existingProduct.images;
     }
 
-    // If new images uploaded, replace images with uploaded ones.
     if (req.files && req.files.length > 0) {
-      existingProduct.images = req.files.map((file) => file.path || file.filename);
+      const newImages = req.files.map(file => file.path);
+      finalImages = [...finalImages, ...newImages];
     }
+
+    existingProduct.images = finalImages;
 
     await existingProduct.save();
-    res.status(200).json({ success: true, message: "✅ Product updated successfully", product: existingProduct });
+
+    res.status(200).json({
+      success: true,
+      message: "✅ Product updated successfully",
+      product: existingProduct,
+    });
   } catch (err) {
     console.error("❌ Error in updateProductById:", err);
-    res.status(500).json({ success: false, message: "❌ Failed to update product", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "❌ Failed to update product",
+      error: err.message,
+    });
   }
 };
+
 
 // ==================== DELETE PRODUCT ====================
 exports.deleteProductById = async (req, res) => {
