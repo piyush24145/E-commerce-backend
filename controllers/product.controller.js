@@ -119,13 +119,8 @@ exports.updateProductById = async (req, res) => {
   try {
     const productId = req.params.id;
     const existingProduct = await Product.findById(productId);
-
-    if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        message: "❌ Product not found",
-      });
-    }
+    if (!existingProduct)
+      return res.status(404).json({ success: false, message: "❌ Product not found" });
 
     const {
       title,
@@ -135,7 +130,7 @@ exports.updateProductById = async (req, res) => {
       stock,
       category,
       color,
-      existingImages,
+      existingImages, // 👈 RECEIVE THIS
     } = req.body;
 
     if (title) existingProduct.title = title;
@@ -143,20 +138,22 @@ exports.updateProductById = async (req, res) => {
     if (short_des) existingProduct.short_des = short_des;
     if (price) existingProduct.price = price;
     if (stock) existingProduct.stock = stock;
+
     if (category) existingProduct.category = category;
     if (color) existingProduct.color = color;
 
-    // 🔥 IMAGE FIX
     let finalImages = [];
 
+    // 1️⃣ keep old images user didn't delete
     if (existingImages) {
       finalImages = JSON.parse(existingImages);
-    } else {
-      finalImages = existingProduct.images;
     }
 
+    // 2️⃣ add newly uploaded images
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => file.path);
+      const newImages = req.files.map(
+        file => file.path || file.filename
+      );
       finalImages = [...finalImages, ...newImages];
     }
 
@@ -170,15 +167,13 @@ exports.updateProductById = async (req, res) => {
       product: existingProduct,
     });
   } catch (err) {
-    console.error("❌ Error in updateProductById:", err);
+    console.error(err);
     res.status(500).json({
       success: false,
       message: "❌ Failed to update product",
-      error: err.message,
     });
   }
 };
-
 
 // ==================== DELETE PRODUCT ====================
 exports.deleteProductById = async (req, res) => {
