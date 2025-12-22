@@ -7,37 +7,38 @@ exports.createProduct = async (req, res) => {
   try {
     const { title, description, short_des, price, stock, category, color } = req.body;
 
-    // Validation check
-    if (!title || !description || !price || !stock) {
+    if (!title || !description || price === undefined || stock === undefined) {
       return res.status(400).json({
         success: false,
-        message: "❌ Missing required fields: title, description, price, or stock",
+        message: "❌ Missing required fields",
       });
     }
 
-    // Multer files check
+    // ✅ Multer images
     let imagePaths = [];
     if (req.files && req.files.length > 0) {
-      imagePaths = req.files.map((file) => file.path || file.filename);
-    } else {
-      console.warn("⚠️ No images uploaded for this product");
+      imagePaths = req.files.map(file => file.path || file.filename);
     }
 
-    // Check if category exists
+    // ✅ Validate category
     let categoryObj = null;
     if (category) {
       categoryObj = await Category.findById(category);
-      if (!categoryObj) return res.status(400).json({ success: false, message: "❌ Invalid category ID" });
+      if (!categoryObj) {
+        return res.status(400).json({ success: false, message: "❌ Invalid category ID" });
+      }
     }
 
-    // Check if color exists
+    // ✅ Validate color
     let colorObj = null;
     if (color) {
       colorObj = await Color.findById(color);
-      if (!colorObj) return res.status(400).json({ success: false, message: "❌ Invalid color ID" });
+      if (!colorObj) {
+        return res.status(400).json({ success: false, message: "❌ Invalid color ID" });
+      }
     }
 
-    const newProduct = new Product({
+    const product = new Product({
       title,
       description,
       short_des,
@@ -48,19 +49,18 @@ exports.createProduct = async (req, res) => {
       images: imagePaths,
     });
 
-    await newProduct.save();
+    await product.save();
 
     res.status(201).json({
       success: true,
       message: "✅ Product created successfully",
-      product: newProduct,
+      product,
     });
   } catch (err) {
-    console.error("❌ Error in createProduct:", err);
+    console.error("❌ createProduct error:", err);
     res.status(500).json({
       success: false,
       message: "❌ Server error while creating product",
-      error: err.message,
     });
   }
 };
@@ -71,8 +71,8 @@ exports.getProducts = async (req, res) => {
     const { category, color, search } = req.query;
     const filter = {};
 
-    if (category) filter.category = { $in: Array.isArray(category) ? category : [category] };
-    if (color) filter.color = { $in: Array.isArray(color) ? color : [color] };
+    if (category) filter.category = { $in: [].concat(category) };
+    if (color) filter.color = { $in: [].concat(color) };
 
     if (search) {
       filter.$or = [
@@ -88,39 +88,36 @@ exports.getProducts = async (req, res) => {
 
     res.status(200).json({ success: true, products });
   } catch (err) {
-    console.error("❌ Error in getProducts:", err);
-    res.status(500).json({
-      success: false,
-      message: "❌ Failed to fetch products",
-      error: err.message,
-    });
+    console.error("❌ getProducts error:", err);
+    res.status(500).json({ success: false, message: "❌ Failed to fetch products" });
   }
 };
 
 // ==================== GET SINGLE PRODUCT ====================
 exports.getSingleProduct = async (req, res) => {
   try {
-    const productId = req.params.id;
-    const product = await Product.findById(productId)
+    const product = await Product.findById(req.params.id)
       .populate("category", "name")
       .populate("color", "name");
 
-    if (!product) return res.status(404).json({ success: false, message: "❌ Product not found" });
+    if (!product) {
+      return res.status(404).json({ success: false, message: "❌ Product not found" });
+    }
 
     res.status(200).json({ success: true, product });
   } catch (err) {
-    console.error("❌ Error in getSingleProduct:", err);
-    res.status(500).json({ success: false, message: "❌ Failed to fetch product", error: err.message });
+    console.error("❌ getSingleProduct error:", err);
+    res.status(500).json({ success: false, message: "❌ Failed to fetch product" });
   }
 };
 
 // ==================== UPDATE PRODUCT ====================
 exports.updateProductById = async (req, res) => {
   try {
-    const productId = req.params.id;
-    const existingProduct = await Product.findById(productId);
-    if (!existingProduct)
+    const product = await Product.findById(req.params.id);
+    if (!product) {
       return res.status(404).json({ success: false, message: "❌ Product not found" });
+    }
 
     const {
       title,
@@ -130,62 +127,68 @@ exports.updateProductById = async (req, res) => {
       stock,
       category,
       color,
-      existingImages, // 👈 RECEIVE THIS
+      existingImages,
     } = req.body;
 
-    if (title) existingProduct.title = title;
-    if (description) existingProduct.description = description;
-    if (short_des) existingProduct.short_des = short_des;
-    if (price) existingProduct.price = price;
-    if (stock) existingProduct.stock = stock;
-
-    if (category) existingProduct.category = category;
-    if (color) existingProduct.color = color;
+    if (title !== undefined) product.title = title;
+    if (description !== undefined) product.description = description;
+    if (short_des !== undefined) product.short_des = short_des;
+    if (price !== undefined) product.price = price;
+    if (stock !== undefined) product.stock = stock;
+    if (category !== undefined) product.category = category;
+    if (color !== undefined) product.color = color;
 
     let finalImages = [];
 
-    // 1️⃣ keep old images user didn't delete
+    // ✅ SAFE existing images parse
     if (existingImages) {
-      finalImages = JSON.parse(existingImages);
+      try {
+        finalImages = Array.isArray(existingImages)
+          ? existingImages
+          : JSON.parse(existingImages);
+      } catch (e) {
+        finalImages = [];
+      }
     }
 
-    // 2️⃣ add newly uploaded images
+    // ✅ Add newly uploaded images
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(
-        file => file.path || file.filename
-      );
+      const newImages = req.files.map(file => file.path || file.filename);
       finalImages = [...finalImages, ...newImages];
     }
 
-    existingProduct.images = finalImages;
+    product.images = finalImages;
 
-    await existingProduct.save();
+    await product.save();
 
     res.status(200).json({
       success: true,
       message: "✅ Product updated successfully",
-      product: existingProduct,
+      product,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      success: false,
-      message: "❌ Failed to update product",
-    });
+    console.error("❌ updateProduct error:", err);
+    res.status(500).json({ success: false, message: "❌ Failed to update product" });
   }
 };
 
 // ==================== DELETE PRODUCT ====================
 exports.deleteProductById = async (req, res) => {
   try {
-    const productId = req.params.id;
-    const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ success: false, message: "❌ Product not found" });
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "❌ Product not found" });
+    }
 
     await product.deleteOne();
-    res.status(200).json({ success: true, message: "✅ Product deleted successfully" });
+
+    res.status(200).json({
+      success: true,
+      message: "✅ Product deleted successfully",
+    });
   } catch (err) {
-    console.error("❌ Error in deleteProductById:", err);
-    res.status(500).json({ success: false, message: "❌ Failed to delete product", error: err.message });
+    console.error("❌ deleteProduct error:", err);
+    res.status(500).json({ success: false, message: "❌ Failed to delete product" });
   }
 };
+
