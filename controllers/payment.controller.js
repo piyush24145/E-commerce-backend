@@ -12,9 +12,7 @@ module.exports = {
       const userId = req.user.id;
       const CLIENT_URL = process.env.CLIENT_URL;
 
-      const cart = await Cart.findOne({ user: userId }).populate(
-        "products.product"
-      );
+      const cart = await Cart.findOne({ user: userId }).populate("products.product");
 
       if (!cart || cart.products.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
@@ -27,10 +25,7 @@ module.exports = {
           product_data: {
             name: item.product.title,
             description: item.product.short_des || "",
-            images:
-              item.product.images?.length > 0
-                ? [item.product.images[0]]
-                : [],
+            images: item.product.images?.length > 0 ? [item.product.images[0]] : [],
           },
         },
         quantity: item.quantity,
@@ -40,15 +35,17 @@ module.exports = {
         ui_mode: "embedded",
         mode: "payment",
         line_items: lineItems,
+        payment_method_types: ["card"],
 
-        // 🔥 MOST IMPORTANT
+        // 🔥 IMPORTANT: return URL
         return_url: `${CLIENT_URL}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
       });
 
-      // ✅ sessionId frontend ko bhejna MUST hai
+      // ✅ send sessionId & clientSecret to frontend
       res.json({
         clientSecret: session.client_secret,
         sessionId: session.id,
+        url: session.url, // optional: for redirect if needed
       });
     } catch (error) {
       console.error("❌ Stripe Checkout Error:", error.message);
@@ -76,14 +73,10 @@ module.exports = {
       }
 
       // 🔒 prevent duplicate orders
-      const existingOrder = await Order.findOne({
-        paymentId: session.id,
-      });
+      const existingOrder = await Order.findOne({ paymentId: session.id });
 
       if (!existingOrder) {
-        const cart = await Cart.findOne({ user: userId }).populate(
-          "products.product"
-        );
+        const cart = await Cart.findOne({ user: userId }).populate("products.product");
 
         if (cart && cart.products.length > 0) {
           const totalAmount = cart.products.reduce(
@@ -118,4 +111,3 @@ module.exports = {
     }
   },
 };
-
