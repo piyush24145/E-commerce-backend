@@ -32,20 +32,17 @@ module.exports = {
       }));
 
       const session = await stripe.checkout.sessions.create({
-        ui_mode: "embedded",
         mode: "payment",
-        line_items: lineItems,
         payment_method_types: ["card"],
-
-        // 🔥 IMPORTANT: return URL
-        return_url: `${CLIENT_URL}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
+        line_items: lineItems,
+        // ✅ use dynamic return_url
+        success_url: `${CLIENT_URL}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${CLIENT_URL}/cart`,
       });
 
-      // ✅ send sessionId & clientSecret to frontend
       res.json({
-        clientSecret: session.client_secret,
         sessionId: session.id,
-        url: session.url, // optional: for redirect if needed
+        url: session.url, // optional redirect if needed
       });
     } catch (error) {
       console.error("❌ Stripe Checkout Error:", error.message);
@@ -57,14 +54,11 @@ module.exports = {
   sessionStatus: async (req, res) => {
     try {
       const { session_id } = req.query;
-      if (!session_id) {
-        return res.status(400).json({ error: "Missing session_id" });
-      }
+      if (!session_id) return res.status(400).json({ error: "Missing session_id" });
 
       const session = await stripe.checkout.sessions.retrieve(session_id);
       const userId = req.user.id;
 
-      // ✅ payment not done
       if (session.payment_status !== "paid") {
         return res.json({
           status: session.payment_status,
@@ -72,7 +66,7 @@ module.exports = {
         });
       }
 
-      // 🔒 prevent duplicate orders
+      // Prevent duplicate orders
       const existingOrder = await Order.findOne({ paymentId: session.id });
 
       if (!existingOrder) {
@@ -95,7 +89,7 @@ module.exports = {
 
           await order.save();
 
-          // clear cart
+          // Clear cart
           cart.products = [];
           await cart.save();
         }
@@ -111,3 +105,4 @@ module.exports = {
     }
   },
 };
+;
