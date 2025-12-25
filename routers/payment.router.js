@@ -8,10 +8,12 @@ const {
 
 const { authenticate } = require("../auth/auth.middleware");
 
-// 🔐 checkout needs auth
+// checkout → auth required
 router.post("/session-create", authenticate, createCheckoutSession);
 
-// ❌ NO AUTH HERE (VERY IMPORTANT)
+// verify → NO auth (Stripe redirect)
 router.get("/verify", verifyPayment);
 
 module.exports = router;
+
+
