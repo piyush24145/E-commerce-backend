@@ -1,12 +1,14 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   createCheckoutSession,
-  sessionStatus,
+  verifyPayment,
 } = require("../controllers/payment.controller");
+
 const { authenticate } = require("../auth/auth.middleware");
 
 router.post("/session-create", authenticate, createCheckoutSession);
-router.get("/session-status", authenticate, sessionStatus);
+router.get("/verify", authenticate, verifyPayment);
 
 module.exports = router;
