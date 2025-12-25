@@ -25,9 +25,7 @@ module.exports = {
           product_data: {
             name: item.product.title,
             description: item.product.short_des || "",
-            images: item.product.images?.length
-              ? [item.product.images[0]]
-              : [],
+            images: item.product.images?.length ? [item.product.images[0]] : [],
           },
         },
         quantity: item.quantity,
@@ -39,8 +37,13 @@ module.exports = {
         payment_method_types: ["card"],
         line_items: lineItems,
 
-        // 🔥 MOST IMPORTANT
-        return_url: `${CLIENT_URL}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
+        // ✅ ROUTE FIX (MOST IMPORTANT)
+        return_url: `${CLIENT_URL}/payment-return?session_id={CHECKOUT_SESSION_ID}`,
+
+        // ✅ USER MAPPING FIX
+        metadata: {
+          userId: userId.toString(),
+        },
       });
 
       res.json({
@@ -48,7 +51,7 @@ module.exports = {
         sessionId: session.id,
       });
     } catch (err) {
-      console.error("Stripe checkout error:", err.message);
+      console.error("Stripe checkout error:", err);
       res.status(500).json({ error: "Checkout failed" });
     }
   },
@@ -59,32 +62,28 @@ module.exports = {
       const { session_id } = req.query;
 
       if (!session_id) {
-        return res.status(400).json({ success: false, message: "Missing session_id" });
+        return res.status(400).json({ success: false });
       }
 
       const session = await stripe.checkout.sessions.retrieve(session_id);
 
       if (session.payment_status !== "paid") {
-        return res.json({
-          success: false,
-          status: session.payment_status,
-        });
+        return res.json({ success: false });
       }
 
-      // 🔒 duplicate order protection
+      // ✅ DUPLICATE PROTECTION
       const existingOrder = await Order.findOne({ paymentId: session.id });
       if (existingOrder) {
         return res.json({ success: true, order: existingOrder });
       }
 
-      // ⚠️ userId Stripe se nahi aata
-      // cart user ko payment intent ke metadata se map karna hota
-      // BUT tumhare case me single user flow hai, isliye last cart use kar rahe
+      // ✅ USER FROM METADATA
+      const userId = session.metadata.userId;
 
-      const cart = await Cart.findOne({}).sort({ updatedAt: -1 }).populate("products.product");
+      const cart = await Cart.findOne({ user: userId }).populate("products.product");
 
       if (!cart || cart.products.length === 0) {
-        return res.status(400).json({ success: false, message: "Cart empty" });
+        return res.status(400).json({ success: false });
       }
 
       const totalAmount = cart.products.reduce(
@@ -93,7 +92,7 @@ module.exports = {
       );
 
       const order = await Order.create({
-        user: cart.user,
+        user: userId,
         products: cart.products,
         totalAmount,
         paymentId: session.id,
@@ -104,12 +103,9 @@ module.exports = {
       cart.products = [];
       await cart.save();
 
-      res.json({
-        success: true,
-        order,
-      });
+      res.json({ success: true, order });
     } catch (err) {
-      console.error("Verify payment error:", err.message);
+      console.error("Verify payment error:", err);
       res.status(500).json({ success: false });
     }
   },
