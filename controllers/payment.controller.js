@@ -25,7 +25,9 @@ module.exports = {
           product_data: {
             name: item.product.title,
             description: item.product.short_des || "",
-            images: item.product.images?.length > 0 ? [item.product.images[0]] : [],
+            images: item.product.images?.length
+              ? [item.product.images[0]]
+              : [],
           },
         },
         quantity: item.quantity,
@@ -34,80 +36,77 @@ module.exports = {
       const session = await stripe.checkout.sessions.create({
         ui_mode: "embedded",
         mode: "payment",
-        line_items: lineItems,
         payment_method_types: ["card"],
-
-        // 🔥 IMPORTANT: return URL
+        line_items: lineItems,
         return_url: `${CLIENT_URL}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
       });
 
-      // ✅ send sessionId & clientSecret to frontend
       res.json({
         clientSecret: session.client_secret,
         sessionId: session.id,
-        url: session.url, // optional: for redirect if needed
       });
-    } catch (error) {
-      console.error("❌ Stripe Checkout Error:", error.message);
-      res.status(500).json({ error: "Stripe session creation failed" });
+    } catch (err) {
+      console.error("Stripe checkout error:", err.message);
+      res.status(500).json({ error: "Checkout failed" });
     }
   },
 
   // ================= VERIFY PAYMENT & CREATE ORDER =================
-  sessionStatus: async (req, res) => {
+  verifyPayment: async (req, res) => {
     try {
       const { session_id } = req.query;
+      const userId = req.user.id;
+
       if (!session_id) {
-        return res.status(400).json({ error: "Missing session_id" });
+        return res.status(400).json({ success: false, message: "Missing session_id" });
       }
 
       const session = await stripe.checkout.sessions.retrieve(session_id);
-      const userId = req.user.id;
 
-      // ✅ payment not done
       if (session.payment_status !== "paid") {
         return res.json({
+          success: false,
           status: session.payment_status,
-          customer_email: session.customer_details?.email || "",
         });
       }
 
-      // 🔒 prevent duplicate orders
+      // 🔒 Prevent duplicate order
       const existingOrder = await Order.findOne({ paymentId: session.id });
-
-      if (!existingOrder) {
-        const cart = await Cart.findOne({ user: userId }).populate("products.product");
-
-        if (cart && cart.products.length > 0) {
-          const totalAmount = cart.products.reduce(
-            (sum, item) => sum + item.product.price * item.quantity,
-            0
-          );
-
-          const order = new Order({
-            user: userId,
-            products: cart.products,
-            totalAmount,
-            paymentId: session.id,
-            paymentStatus: "paid",
-            orderStatus: "Pending",
-          });
-
-          await order.save();
-
-          // clear cart
-          cart.products = [];
-          await cart.save();
-        }
+      if (existingOrder) {
+        return res.json({ success: true, order: existingOrder });
       }
 
-      res.json({
-        status: "paid",
-        customer_email: session.customer_details?.email || "",
+      const cart = await Cart.findOne({ user: userId }).populate("products.product");
+
+      if (!cart || cart.products.length === 0) {
+        return res.status(400).json({ success: false, message: "Cart empty" });
+      }
+
+      const totalAmount = cart.products.reduce(
+        (sum, item) => sum + item.product.price * item.quantity,
+        0
+      );
+
+      const order = await Order.create({
+        user: userId,
+        products: cart.products,
+        totalAmount,
+        paymentId: session.id,
+        paymentStatus: "paid",
+        orderStatus: "Pending",
       });
-    } catch (error) {
-      console.error("❌ Session verification error:", error.message);
-      res.status(500).json({ error: "Failed to verify payment" });
+
+      // clear cart
+      cart.products = [];
+      await cart.save();
+
+      res.json({
+        success: true,
+        order,
+      });
+    } catch (err) {
+      console.error("Verify payment error:", err.message);
+      res.status(500).json({ success: false });
     }
   },
 };
