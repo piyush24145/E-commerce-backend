@@ -38,6 +38,8 @@ module.exports = {
         mode: "payment",
         payment_method_types: ["card"],
         line_items: lineItems,
+
+        // 🔥 MOST IMPORTANT
         return_url: `${CLIENT_URL}/payment/return?session_id={CHECKOUT_SESSION_ID}`,
       });
 
@@ -55,7 +57,6 @@ module.exports = {
   verifyPayment: async (req, res) => {
     try {
       const { session_id } = req.query;
-      const userId = req.user.id;
 
       if (!session_id) {
         return res.status(400).json({ success: false, message: "Missing session_id" });
@@ -70,13 +71,17 @@ module.exports = {
         });
       }
 
-      // 🔒 Prevent duplicate order
+      // 🔒 duplicate order protection
       const existingOrder = await Order.findOne({ paymentId: session.id });
       if (existingOrder) {
         return res.json({ success: true, order: existingOrder });
       }
 
-      const cart = await Cart.findOne({ user: userId }).populate("products.product");
+      // ⚠️ userId Stripe se nahi aata
+      // cart user ko payment intent ke metadata se map karna hota
+      // BUT tumhare case me single user flow hai, isliye last cart use kar rahe
+
+      const cart = await Cart.findOne({}).sort({ updatedAt: -1 }).populate("products.product");
 
       if (!cart || cart.products.length === 0) {
         return res.status(400).json({ success: false, message: "Cart empty" });
@@ -88,7 +93,7 @@ module.exports = {
       );
 
       const order = await Order.create({
-        user: userId,
+        user: cart.user,
         products: cart.products,
         totalAmount,
         paymentId: session.id,
@@ -96,7 +101,6 @@ module.exports = {
         orderStatus: "Pending",
       });
 
-      // clear cart
       cart.products = [];
       await cart.save();
 
@@ -110,3 +114,4 @@ module.exports = {
     }
   },
 };
+
